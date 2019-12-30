@@ -1,0 +1,6 @@
+[package]
+name = "cli-routeplanner"
+version = "0.1.0"
+
+[dependencies]
+osm-xml = "0.6.2"
