@@ -1,4 +1,3 @@
-use dotenv;
 use std::env;
 use std::process;
 use geojson::GeoJson;
@@ -8,7 +7,7 @@ fn get_api_key() -> String {
     dotenv::dotenv().ok();
     let key = "ROUTESERVICE_API_KEY";
     match env::var(key) {
-        Ok(val) => return val,
+        Ok(val) => val,
         Err(e) => {
             println!("You should define {}. Following error happened: {}", key, e);
             process::exit(1);
@@ -27,7 +26,7 @@ fn parse_geolocation(geo_result_string: &str)  -> Option<(f64, f64)> {
     None
 }
 
-async fn get_geolocation(address: &str, api_key: &String) -> Result<String, Box<dyn std::error::Error>> {
+async fn get_geolocation(address: &str, api_key: &str) -> Result<String, Box<dyn std::error::Error>> {
     let url = format!("https://api.openrouteservice.org/geocode/search?api_key={}&text={}", api_key, address);
     let resp = reqwest::get(&url)
         .await?
@@ -37,7 +36,7 @@ async fn get_geolocation(address: &str, api_key: &String) -> Result<String, Box<
 }
 
 
-async fn get_directions(profile: &str, start: (f64, f64), end: (f64, f64), api_key: &String) -> Result<String, Box<dyn std::error::Error>> {
+async fn get_directions(profile: &str, start: (f64, f64), end: (f64, f64), api_key: &str) -> Result<String, Box<dyn std::error::Error>> {
     let url = format!("https://api.openrouteservice.org/v2/directions/{}?api_key={}&start={},{}&end={},{}", profile, api_key, start.0, start.1, end.0, end.1);
     let resp = reqwest::get(&url)
         .await?
@@ -49,7 +48,7 @@ async fn get_directions(profile: &str, start: (f64, f64), end: (f64, f64), api_k
 
 fn parse_args(args: Vec<String>) -> (String, String) {
     match args.len() {
-        3 => return (args[1].clone(), args[2].clone()),
+        3 => (args[1].clone(), args[2].clone()),
         _ =>  {
             println!("You need to give start and end addresses.");
             process::exit(1);
