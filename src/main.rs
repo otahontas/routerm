@@ -16,8 +16,17 @@ fn get_api_key() -> String {
     }
 }
 
-async fn get_geolocation(address: &str, api_key: String) -> Result<String, Box<dyn std::error::Error>> {
+async fn get_geolocation(address: &str, api_key: &String) -> Result<String, Box<dyn std::error::Error>> {
     let url = format!("https://api.openrouteservice.org/geocode/search?api_key={}&text={}", api_key, address);
+    let resp = reqwest::get(&url)
+        .await?
+        .text()
+        .await?;
+    Ok(resp)
+}
+
+async fn get_directions(profile: &str, start: (f64, f64), end: (f64, f64), api_key: &String) -> Result<String, Box<dyn std::error::Error>> {
+    let url = format!("https://api.openrouteservice.org/v2/directions/{}?api_key={}&start={},{}&end={},{}", profile, api_key, start.0, start.1, end.0, end.1);
     let resp = reqwest::get(&url)
         .await?
         .text()
@@ -35,6 +44,7 @@ fn parse_geolocation(geo_result_string: &str)  -> Option<(f64, f64)> {
     }
     None
 }
+
 
 #[tokio::main]
 async fn main() {
