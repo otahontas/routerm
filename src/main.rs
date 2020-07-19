@@ -3,6 +3,11 @@ use std::process;
 use geojson::GeoJson;
 use geojson::Value::Point;
 
+use crate::route::Route;
+use crate::step::Step;
+mod route;
+mod step;
+
 fn get_api_key() -> String {
     dotenv::dotenv().ok();
     let key = "ROUTESERVICE_API_KEY";
@@ -59,17 +64,50 @@ fn parse_args(args: Vec<String>) -> (String, String) {
 
 #[tokio::main]
 async fn main() {
+    
     let api_key = get_api_key();
     let args = env::args().collect();
     let (start, end) = parse_args(args);
     let start_georesult = get_geolocation(&start, &api_key).await.unwrap();
     let end_georesult = get_geolocation(&end, &api_key).await.unwrap();
+
     if let Some(start_point) = parse_geolocation(&start_georesult) {
         if let Some(end_point) = parse_geolocation(&end_georesult) {
             let profile = "cycling-road";
             let directions_result = get_directions(profile, start_point, end_point, &api_key).await.unwrap();
             let parsed_result = directions_result.parse::<GeoJson>().unwrap();
-            println!("{:#?}", parsed_result);
+
+            println!("Start:\t  {}\nEnd:\t  {}", start, end);
+            match parse_geojson(parsed_result) {
+                Some(x) => println!("{}", x),
+                None    => println!("Couldn't parse geojson")
+            
         }
+    }
+    
+    }
+    
+}
+
+fn parse_geojson(geojson: GeoJson) -> Option<Route> {
+    match geojson {
+        GeoJson::FeatureCollection(fc) => {
+            let props= fc.features[0]
+            			  .properties.clone()?;
+            let segs = &props.get("segments")?[0];
+            let steps: Vec<Step> = segs.get("steps")?
+                .as_array()?.iter()
+                .map(|s| Step::new( // can't use ? inside closure, so unwrap is used
+                    		s.get("distance").unwrap().as_f64().unwrap(),
+                    		String::from(s.get("instruction").unwrap().as_str().unwrap())))
+                .collect();
+
+            let r = Route::new(
+                segs.get("distance")?.as_f64()?,
+                segs.get("duration")?.as_f64()?,
+                steps);
+
+			Some(r)},
+        _ => None
     }
 }
