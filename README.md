@@ -4,10 +4,10 @@ Cli-routeplanner is a command-line interface for getting directions between poin
 
 ## Installation and usage
 - clone this repo
-- install binary with `cargo build --release`, then run `cd target/release`
 - [get API key for Openrouteservice](https://openrouteservice.org/dev/#/home)
 - add you api key as env variable `ROUTESERVICE_API_KEY`
   - setting variable with `.env` -file is supported
+- install binary with `cargo build --release`, then run `cd target/release`
 - use routeplanner by running `cli-routeplanner start end`, where start and end are some addresses.
 - alternatively skip binary installation and just run `cargo run start end` from the projects root
 
@@ -16,8 +16,8 @@ Cli-routeplanner is a command-line interface for getting directions between poin
 - Check that your code style is inline with clippy, we check that with Github actions.
 
 ## Credits
-- @Halmela
-- @otahontas
+- [@Halmela](https://github.com/Halmela)
+- [@otahontas](https://github.com/otahontas)
 
 ## License
 - MIT
