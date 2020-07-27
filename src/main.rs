@@ -1,27 +1,16 @@
+
 use std::env;
 use std::process;
 use geojson::GeoJson;
 use geojson::Value::Point;
-use structopt::StructOpt;
 
 use crate::route::Route;
 use crate::step::Step;
+use crate::conf::Args;
+
 mod route;
 mod step;
-
-#[derive(StructOpt)]
-#[structopt(name = "Arguments", about = "Arguments parsed from command line.")]
-struct Args {
-    #[structopt(short, long)]
-    start: String,
-
-    #[structopt(short, long)]
-    end: String,
-
-    #[structopt(short, long, possible_values = &["driving-car", "driving-hgv", "cycling-regular", "cycling-road", "cycling-mountain", "cycling-electric", "foot-walking", "foot-hiking", "wheelchair"],
-    case_insensitive = true)]
-    profile: String,
-}
+mod conf;
 
 fn get_api_key() -> String {
     dotenv::dotenv().ok();
@@ -67,17 +56,17 @@ async fn get_directions(profile: &str, start: (f64, f64), end: (f64, f64), api_k
 
 #[tokio::main]
 async fn main() {
-    let args = Args::from_args();
+    let (start, end, profile) = Args::get_args();
     let api_key = get_api_key();
-    let start_georesult = get_geolocation(&args.start, &api_key).await.unwrap();
-    let end_georesult = get_geolocation(&args.end, &api_key).await.unwrap();
+    let start_georesult = get_geolocation(&start, &api_key).await.unwrap();
+    let end_georesult = get_geolocation(&end, &api_key).await.unwrap();
 
     if let Some(start_point) = parse_geolocation(&start_georesult) {
         if let Some(end_point) = parse_geolocation(&end_georesult) {
-            let directions_result = get_directions(&args.profile, start_point, end_point, &api_key).await.unwrap();
+            let directions_result = get_directions(&profile, start_point, end_point, &api_key).await.unwrap();
             let parsed_result = directions_result.parse::<GeoJson>().unwrap();
 
-            println!("Start:\t  {}\nEnd:\t  {}", args.start, args.end);
+            println!("Start:\t  {}\nEnd:\t  {}", start, end);
             match parse_geojson(parsed_result) {
                 Some(x) => println!("{}", x),
                 None    => println!("Couldn't parse geojson")
