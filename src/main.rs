@@ -1,44 +1,113 @@
-extern crate osm_xml as osm;
+use std::env;
+use std::process;
+use geojson::GeoJson;
+use geojson::Value::Point;
 
-use std::fs::File;
+use crate::route::Route;
+use crate::step::Step;
+mod route;
+mod step;
 
-fn main() {
-    let f = File::open("data/map.osm").unwrap();
-    let doc = osm::OSM::parse(f).unwrap();
-
-    /*
-    for n in doc.nodes.iter() {
-        let (id, node) = n;
-
-        println!("id: {}", id);
-        println!("\tlat: {}", node.lat);
-        println!("\tlon: {}", node.lon);
-        println!("\ttags:");
-
-        for tag in &node.tags {
-           println!("\t\t{}: {}", tag.key, tag.val);
+fn get_api_key() -> String {
+    dotenv::dotenv().ok();
+    let key = "ROUTESERVICE_API_KEY";
+    match env::var(key) {
+        Ok(val) => val,
+        Err(e) => {
+            println!("You should define {}. Following error happened: {}", key, e);
+            process::exit(1);
         }
-        println!("");
     }
-    */
+}
 
-    for w in doc.ways.iter() {
-        let (id, way) = w;
-
-        println!("id: {}", id);
-        println!("nodes:");
-
-        for node in &way.nodes {
-            match node {
-                osm::UnresolvedReference::Node(id) => println!("\t{}", id),
-                _ => println!(""),
+fn parse_geolocation(geo_result_string: &str)  -> Option<(f64, f64)> {
+    if let GeoJson::FeatureCollection(parsed_geo_result) = geo_result_string.parse::<GeoJson>().unwrap() {
+        if let Some(geometry) = &parsed_geo_result.features[0].geometry {
+            if let Point(point)  = &geometry.value {
+                return Some((point[0], point[1]));
             }
         }
-        
-        println!("tags:");
-        for tag in &way.tags {
-            println!("\t{}: {}", tag.key, tag.val);
+    }
+    None
+}
+
+async fn get_geolocation(address: &str, api_key: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let url = format!("https://api.openrouteservice.org/geocode/search?api_key={}&text={}", api_key, address);
+    let resp = reqwest::get(&url)
+        .await?
+        .text()
+        .await?;
+    Ok(resp)
+}
+
+
+async fn get_directions(profile: &str, start: (f64, f64), end: (f64, f64), api_key: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let url = format!("https://api.openrouteservice.org/v2/directions/{}?api_key={}&start={},{}&end={},{}", profile, api_key, start.0, start.1, end.0, end.1);
+    let resp = reqwest::get(&url)
+        .await?
+        .text()
+        .await?;
+    Ok(resp)
+}
+
+
+fn parse_args(args: Vec<String>) -> (String, String) {
+    match args.len() {
+        3 => (args[1].clone(), args[2].clone()),
+        _ =>  {
+            println!("You need to give start and end addresses.");
+            process::exit(1);
         }
-        println!("");
+    }
+}
+
+
+#[tokio::main]
+async fn main() {
+    
+    let api_key = get_api_key();
+    let args = env::args().collect();
+    let (start, end) = parse_args(args);
+    let start_georesult = get_geolocation(&start, &api_key).await.unwrap();
+    let end_georesult = get_geolocation(&end, &api_key).await.unwrap();
+
+    if let Some(start_point) = parse_geolocation(&start_georesult) {
+        if let Some(end_point) = parse_geolocation(&end_georesult) {
+            let profile = "cycling-road";
+            let directions_result = get_directions(profile, start_point, end_point, &api_key).await.unwrap();
+            let parsed_result = directions_result.parse::<GeoJson>().unwrap();
+
+            println!("Start:\t  {}\nEnd:\t  {}", start, end);
+            match parse_geojson(parsed_result) {
+                Some(x) => println!("{}", x),
+                None    => println!("Couldn't parse geojson")
+            
+        }
+    }
+    
+    }
+    
+}
+
+fn parse_geojson(geojson: GeoJson) -> Option<Route> {
+    match geojson {
+        GeoJson::FeatureCollection(fc) => {
+            let props= fc.features[0]
+            			  .properties.clone()?;
+            let segs = &props.get("segments")?[0];
+            let steps: Vec<Step> = segs.get("steps")?
+                .as_array()?.iter()
+                .map(|s| Step::new( // can't use ? inside closure, so unwrap is used
+                    		s.get("distance").unwrap().as_f64().unwrap(),
+                    		String::from(s.get("instruction").unwrap().as_str().unwrap())))
+                .collect();
+
+            let r = Route::new(
+                segs.get("distance")?.as_f64()?,
+                segs.get("duration")?.as_f64()?,
+                steps);
+
+			Some(r)},
+        _ => None
     }
 }

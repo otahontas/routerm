@@ -1,6 +1,10 @@
 [package]
 name = "cli-routeplanner"
 version = "0.1.0"
+edition = "2018"
 
 [dependencies]
-osm-xml = "0.6.2"
+reqwest = { version = "0.10", features = ["json"] }
+tokio = { version = "0.2", features = ["full"] }
+geojson= "*"
+dotenv= "*"
