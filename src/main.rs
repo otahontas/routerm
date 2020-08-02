@@ -1,24 +1,13 @@
-use std::env;
-use std::process;
 use geojson::GeoJson;
 use geojson::Value::Point;
 
 use crate::route::Route;
 use crate::step::Step;
+
 mod route;
 mod step;
+mod conf;
 
-fn get_api_key() -> String {
-    dotenv::dotenv().ok();
-    let key = "ROUTESERVICE_API_KEY";
-    match env::var(key) {
-        Ok(val) => val,
-        Err(e) => {
-            println!("You should define {}. Following error happened: {}", key, e);
-            process::exit(1);
-        }
-    }
-}
 
 fn parse_geolocation(geo_result_string: &str)  -> Option<(f64, f64)> {
     if let GeoJson::FeatureCollection(parsed_geo_result) = geo_result_string.parse::<GeoJson>().unwrap() {
@@ -50,31 +39,17 @@ async fn get_directions(profile: &str, start: (f64, f64), end: (f64, f64), api_k
     Ok(resp)
 }
 
-
-fn parse_args(args: Vec<String>) -> (String, String) {
-    match args.len() {
-        3 => (args[1].clone(), args[2].clone()),
-        _ =>  {
-            println!("You need to give start and end addresses.");
-            process::exit(1);
-        }
-    }
-}
-
-
 #[tokio::main]
 async fn main() {
-    
-    let api_key = get_api_key();
-    let args = env::args().collect();
-    let (start, end) = parse_args(args);
+    let (start, end, profile) = conf::Args::get_args();
+    let api_key = conf::get_api_key();
+
     let start_georesult = get_geolocation(&start, &api_key).await.unwrap();
     let end_georesult = get_geolocation(&end, &api_key).await.unwrap();
 
     if let Some(start_point) = parse_geolocation(&start_georesult) {
         if let Some(end_point) = parse_geolocation(&end_georesult) {
-            let profile = "cycling-road";
-            let directions_result = get_directions(profile, start_point, end_point, &api_key).await.unwrap();
+            let directions_result = get_directions(&profile, start_point, end_point, &api_key).await.unwrap();
             let parsed_result = directions_result.parse::<GeoJson>().unwrap();
 
             println!("Start:\t  {}\nEnd:\t  {}", start, end);
