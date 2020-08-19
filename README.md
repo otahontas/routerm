@@ -1,6 +1,6 @@
-# Cli-routeplanner
+# Routerm
 
-Cli-routeplanner is a command-line interface for getting directions between points A and B. It uses [Openrouteservice](openrouteservice.org) API and is built with Rust.
+Routerm is a command-line interface for getting walking/cycling/driving directions between points A and B. It uses [Openrouteservice](openrouteservice.org) API and is built with Rust.
 
 ## Installation and usage
 - clone this repo
